@@ -1,0 +1,20 @@
+{
+  "name": "Trello Power-Up",
+  "details": "A custom Trello Power-Up for enhanced functionality",
+  "icon": {
+    "url": "./icon.png"
+  },
+  "author": "Your Name",
+  "capabilities": [
+    "board-buttons",
+    "card-badges",
+    "card-buttons",
+    "card-detail-badges",
+    "show-settings"
+  ],
+  "connectors": {
+    "iframe": {
+      "url": "./index.html"
+    }
+  }
+} 
