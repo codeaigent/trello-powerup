@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CodeAIgent Authorization</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script src="./config.js"></script>
+  <style>
+    body {
+      padding: 1rem;
+      text-align: center;
+    }
+    .button {
+      background: #0079BF;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <button class="button" id="authorize">Authorize & Add Bot</button>
+  <script>
+    var t = window.TrelloPowerUp.iframe();
+    
+    document.getElementById('authorize').addEventListener('click', function() {
+      // First authorize the Power-Up
+      t.authorize(window.location.href)
+        .then(function(token) {
+          // Store the token
+          return t.set('member', 'private', 'token', token)
+            .then(function() {
+              // Get the current board ID
+              return t.board('id');
+            })
+            .then(function(board) {
+              // Make API call to add bot to board
+              return fetch(`https://api.trello.com/1/boards/${board.id}/members?key=${POWERUP_API_KEY}&token=${token}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  email: BOT_EMAIL,
+                  type: 'normal'
+                })
+              });
+            })
+            .then(function() {
+              t.closePopup();
+              t.alert({
+                message: 'CodeAIgent bot has been added to the board!',
+                duration: 5
+              });
+            });
+        });
+    });
+  </script>
+</body>
+</html> 
