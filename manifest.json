@@ -1,12 +1,17 @@
 {
-  "name": "Trello Power-Up",
-  "details": "A custom Trello Power-Up for enhanced functionality",
+  "name": "CodeAIgent",
+  "details": "AI-powered code assistant for Trello",
   "icon": {
     "url": "./icon.png"
   },
   "author": "Your Name",
   "capabilities": [
-    "card-buttons"
+    "card-buttons",
+    "card-badges",
+    "attachment-sections",
+    "card-back-section",
+    "authorization",
+    "board-buttons"
   ],
   "connectors": {
     "iframe": {
