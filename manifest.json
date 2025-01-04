@@ -10,7 +10,8 @@
     "card-badges",
     "attachment-sections",
     "card-back-section",
-    "authorization",
+    "authorization-status",
+    "show-authorization",
     "board-buttons"
   ],
   "connectors": {
