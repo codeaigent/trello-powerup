@@ -6,11 +6,7 @@
   },
   "author": "Your Name",
   "capabilities": [
-    "board-buttons",
-    "card-badges",
-    "card-buttons",
-    "card-detail-badges",
-    "show-settings"
+    "card-buttons"
   ],
   "connectors": {
     "iframe": {
