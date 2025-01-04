@@ -2,9 +2,10 @@
 
 console.log('CodeAIgent Power-Up initializing...'); // Debug log
 
-// Load API key from environment or secure configuration
-const POWERUP_API_KEY = process.env.TRELLO_API_KEY || ''; // Will be injected during build
-const BOT_USERNAME = 'codeaigent'; // Your bot's username
+// API key is defined in config.js which is generated during deployment
+if (!POWERUP_API_KEY) {
+  console.error('API key not found. Make sure config.js is properly generated.');
+}
 
 // This is the main initialization function that Trello will call
 window.TrelloPowerUp.initialize({

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>CodeAIgent Authorization</title>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script src="./config.js"></script>
   <style>
     body {
       padding: 1rem;
@@ -42,7 +43,7 @@
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  email: 'bot@codeaigent.com',
+                  email: BOT_EMAIL,
                   type: 'normal'
                 })
               });
