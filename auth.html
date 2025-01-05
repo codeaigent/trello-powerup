@@ -30,15 +30,21 @@
     });
 
     document.getElementById('authorize').addEventListener('click', function() {
-      // Generate a random token for development
-      var mockToken = 'dev_token_' + Math.random().toString(36).substr(2);
-      
-      // Store the token in Power-Up storage
-      t.set('member', 'private', 'authToken', mockToken)
-        .then(function() {
-          // After storing the token, close the popup
-          t.closePopup();
-        });
+      t.authorize({
+        scope: 'read,write',
+        expiration: 'never',
+        return_url: window.location.origin + '/auth.html'
+      })
+      .then(function(token) {
+        // Store the token in Power-Up storage
+        return t.set('member', 'private', 'authToken', token)
+      })
+      .then(function() {
+        t.closePopup();
+      })
+      .catch(function(err) {
+        console.error('Failed to authorize', err);
+      });
     });
   </script>
 </body>
