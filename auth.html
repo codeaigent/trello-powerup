@@ -9,6 +9,7 @@
     body {
       padding: 1rem;
       text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     }
     .button {
       background: #0079BF;
@@ -17,44 +18,69 @@
       border-radius: 3px;
       border: none;
       cursor: pointer;
+      font-size: 14px;
+    }
+    .button:hover {
+      background: #026AA7;
+    }
+    .status {
+      margin-top: 1rem;
+      color: #5E6C84;
     }
   </style>
 </head>
 <body>
-  <button class="button" id="authorize">Authorize & Add Bot</button>
+  <h2>Authorize CodeAIgent</h2>
+  <p>Click below to authorize this Power-Up to:</p>
+  <ul style="text-align: left; display: inline-block;">
+    <li>Read your cards and boards</li>
+    <li>Create comments on your behalf</li>
+    <li>Add the AI assistant to your board</li>
+  </ul>
+  <br>
+  <button class="button" id="authorize">Authorize CodeAIgent</button>
+  <div id="status" class="status"></div>
+
   <script>
     var t = window.TrelloPowerUp.iframe();
+    var status = document.getElementById('status');
     
+    // Check if we're returning from Trello's auth page
+    if (window.location.search.includes('token=')) {
+      status.textContent = 'Authorization successful! You can close this window.';
+      setTimeout(function() {
+        t.closePopup();
+      }, 1000);
+      return;
+    }
+
     document.getElementById('authorize').addEventListener('click', function() {
-      // First authorize the Power-Up
-      t.authorize(window.location.href)
+      this.disabled = true;
+      status.textContent = 'Authorizing...';
+
+      // Scope defines what permissions we're requesting
+      var opts = {
+        scope: 'read,write',
+        return_url: window.location.href,
+        expiration: 'never',
+        name: 'CodeAIgent Power-Up'
+      };
+
+      t.authorize(opts)
         .then(function(token) {
           // Store the token
           return t.set('member', 'private', 'token', token)
             .then(function() {
-              // Get the current board ID
-              return t.board('id');
-            })
-            .then(function(board) {
-              // Make API call to add bot to board
-              return fetch(`https://api.trello.com/1/boards/${board.id}/members?key=${POWERUP_API_KEY}&token=${token}`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  email: BOT_EMAIL,
-                  type: 'normal'
-                })
-              });
-            })
-            .then(function() {
-              t.closePopup();
-              t.alert({
-                message: 'CodeAIgent bot has been added to the board!',
-                duration: 5
-              });
+              status.textContent = 'Authorization successful!';
+              setTimeout(function() {
+                t.closePopup();
+              }, 1000);
             });
+        })
+        .catch(function(err) {
+          console.error('Failed to authorize', err);
+          status.textContent = 'Authorization failed. Please try again.';
+          document.getElementById('authorize').disabled = false;
         });
     });
   </script>

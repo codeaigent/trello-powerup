@@ -7,10 +7,40 @@ if (!POWERUP_API_KEY) {
   console.error('API key not found. Make sure config.js is properly generated.');
 }
 
+// Function to add bot to board
+function addBotToBoard(t, token) {
+  return t.board('id')
+    .then(function(board) {
+      return fetch(`https://api.trello.com/1/boards/${board.id}/members?key=${POWERUP_API_KEY}&token=${token}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: BOT_EMAIL,
+          type: 'normal'
+        })
+      });
+    })
+    .then(function() {
+      return t.alert({
+        message: 'CodeAIgent bot has been added to the board!',
+        duration: 5
+      });
+    })
+    .catch(function(error) {
+      console.error('Failed to add bot:', error);
+      return t.alert({
+        message: 'Failed to add bot. Please try again.',
+        duration: 5,
+        display: 'error'
+      });
+    });
+}
+
 // This is the main initialization function that Trello will call
 window.TrelloPowerUp.initialize({
   'authorization-status': function(t, options) {
-    // Return a promise that resolves to the authorization status
     return t.get('member', 'private', 'token')
       .then(function(token) {
         return { authorized: token != null };
@@ -21,7 +51,7 @@ window.TrelloPowerUp.initialize({
     return t.popup({
       title: 'CodeAIgent Authorization',
       url: './auth.html',
-      height: 140
+      height: 180
     });
   },
 
@@ -39,7 +69,7 @@ window.TrelloPowerUp.initialize({
               return t.popup({
                 title: 'CodeAIgent Authorization',
                 url: './auth.html',
-                height: 140
+                height: 180
               });
             }
           }];
@@ -62,16 +92,14 @@ window.TrelloPowerUp.initialize({
                     return t.card('id', 'name')
                       .then(function(card) {
                         console.log('Adding comment to card:', card.id);
-                        return t.alert({
-                          message: 'Adding @codeaigent to card...',
-                          duration: 3
-                        })
-                        .then(function() {
-                          return t.set('card', 'shared', 'lastComment', {
-                            text: '@codeaigent Please help with this task',
-                            timestamp: new Date().toISOString()
+                        // First ensure bot is added to board
+                        return addBotToBoard(t, token)
+                          .then(function() {
+                            return t.set('card', 'shared', 'lastComment', {
+                              text: '@codeaigent Please help with this task',
+                              timestamp: new Date().toISOString()
+                            });
                           });
-                        });
                       });
                   }
                 },
