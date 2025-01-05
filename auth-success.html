@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Authorization Success</title>
+  <script>
+    // Get the token from the URL fragment
+    var hashParams = window.location.hash.substring(1).split('&').reduce(function(params, param) {
+      var parts = param.split('=');
+      params[parts[0]] = decodeURIComponent(parts[1]);
+      return params;
+    }, {});
+
+    var token = hashParams.token;
+
+    // Try to use window.opener.authorize first
+    let authorize;
+    try {
+      if (window.opener && typeof window.opener.authorize === 'function') {
+        authorize = window.opener.authorize;
+      }
+    } catch (e) {
+      // Security settings are preventing this, fall back to local storage
+      console.log('Could not access opener, falling back to localStorage');
+    }
+
+    if (authorize) {
+      authorize(token);
+    } else {
+      localStorage.setItem('token', token);
+    }
+
+    // Close the window after a short delay
+    setTimeout(function() {
+      window.close();
+    }, 1000);
+  </script>
+</head>
+<body>
+  <h1>Authorization Successful!</h1>
+  <p>You can close this window now.</p>
+</body>
+</html> 
