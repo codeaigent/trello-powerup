@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GitHub Authorization</title>
+  <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css" />
+  <style>
+    body {
+      background: #24292e;
+      color: white;
+    }
+    #content {
+      padding: 30px;
+      text-align: center;
+    }
+    .github-button {
+      background: #2ea44f;
+      color: white;
+      border: 1px solid rgba(27, 31, 35, .15);
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .github-button:hover {
+      background: #2c974b;
+    }
+  </style>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <div id="content">
+    <h1>Connect with GitHub</h1>
+    <p>CodeAIgent needs access to your GitHub account to:</p>
+    <ul style="text-align: left; display: inline-block;">
+      <li>Read your repositories</li>
+      <li>Create and update issues</li>
+      <li>Post comments</li>
+    </ul>
+    <br><br>
+    <button id="authorize" class="github-button">
+      <img src="https://github.com/favicon.ico" width="16" height="16" style="vertical-align: middle; margin-right: 8px;">
+      Continue with GitHub
+    </button>
+  </div>
+  <script>
+    var clientId = 'YOUR_GITHUB_CLIENT_ID';
+    var redirectUri = window.location.origin + '/3rd-party/github-callback.html';
+    var scope = 'repo';
+
+    document.getElementById('authorize').addEventListener('click', function() {
+      var githubAuthUrl = 'https://github.com/login/oauth/authorize?' +
+        'client_id=' + clientId +
+        '&redirect_uri=' + encodeURIComponent(redirectUri) +
+        '&scope=' + scope;
+      
+      window.location.href = githubAuthUrl;
+    });
+  </script>
+</body>
+</html> 
