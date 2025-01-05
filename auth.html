@@ -44,18 +44,22 @@
   <script>
     var t = window.TrelloPowerUp.iframe();
     var status = document.getElementById('status');
+    var authorizeButton = document.getElementById('authorize');
     
-    // Check if we're returning from Trello's auth page
-    if (window.location.search.includes('token=')) {
-      status.textContent = 'Authorization successful! You can close this window.';
-      setTimeout(function() {
-        t.closePopup();
-      }, 1000);
-      return;
+    function initialize() {
+      // Check if we're returning from Trello's auth page
+      if (window.location.search.includes('token=')) {
+        status.textContent = 'Authorization successful! You can close this window.';
+        setTimeout(function() {
+          t.closePopup();
+        }, 1000);
+      } else {
+        authorizeButton.addEventListener('click', handleAuthorization);
+      }
     }
 
-    document.getElementById('authorize').addEventListener('click', function() {
-      this.disabled = true;
+    function handleAuthorization() {
+      authorizeButton.disabled = true;
       status.textContent = 'Authorizing...';
 
       // Scope defines what permissions we're requesting
@@ -80,9 +84,16 @@
         .catch(function(err) {
           console.error('Failed to authorize', err);
           status.textContent = 'Authorization failed. Please try again.';
-          document.getElementById('authorize').disabled = false;
+          authorizeButton.disabled = false;
         });
-    });
+    }
+
+    // Initialize when the document is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+      initialize();
+    }
   </script>
 </body>
 </html> 
