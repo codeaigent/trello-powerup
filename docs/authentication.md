@@ -75,7 +75,7 @@ export class TrelloAuthDto {
   member: {
     id: string;
     username: string;
-    email: string;
+    fullName: string;
   };
   board: {
     id: string;

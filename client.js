@@ -5,6 +5,7 @@ console.log('CodeAIgent Power-Up initializing...'); // Debug log
 if (!POWERUP_API_KEY) {
     console.error('API key not found. Make sure config.js is properly generated.');
 }
+
 // Function to add bot to board
 function addBotToBoard(t, token) {
   return t.board('id')
