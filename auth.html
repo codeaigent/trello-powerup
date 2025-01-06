@@ -47,24 +47,126 @@
       height: 680,
       width: 580,
       validToken: function(token) {
-        // You can add validation here if needed
         return token && token.length > 0;
       }
     };
 
+    // Helper functions for authentication and session management
+    const MAX_RETRIES = 3;
+
+    async function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function retryOperation(operation) {
+      let lastError;
+      
+      for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error;
+          if (i < MAX_RETRIES - 1) {
+            await wait(Math.pow(2, i) * 1000);
+          }
+        }
+      }
+      
+      throw lastError;
+    }
+
+    async function generateSignature(data, timestamp) {
+      const message = timestamp + JSON.stringify(data);
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function handleTrelloAuth(token) {
+      // First store the token in Power-Up storage
+      await t.set('member', 'private', 'authToken', token);
+      
+      // Get all required data in parallel
+      const [member, board] = await Promise.all([
+        t.member('id', 'username', 'email'),
+        t.board('id', 'name')
+      ]);
+
+      const timestamp = Date.now().toString();
+      const requestData = {
+        member: {
+          id: member.id,
+          username: member.username,
+          email: member.email
+        },
+        board: {
+          id: board.id,
+          name: board.name
+        }
+      };
+
+      const signature = await generateSignature(requestData, timestamp);
+
+      const response = await fetch(`${BACKEND_URL}/api/auth/trello`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Trello-Token': token,
+          'X-Request-Timestamp': timestamp,
+          'X-Request-Signature': signature,
+          'X-Power-Up-Token': POWERUP_API_KEY
+        },
+        body: JSON.stringify(requestData),
+        credentials: 'include'  // Important for cookie handling
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Store the session ID/token from backend
+      await t.set('member', 'private', 'sessionId', result.sessionId);
+      
+      return result;
+    }
+
+    // Click handler for the authorize button
     document.getElementById('authorize').addEventListener('click', function() {
       t.authorize(authUrl, authorizeOpts)
-        .then(function(token) {
-          // Store the token in Power-Up storage
-          return t.set('member', 'private', 'authToken', token);
-        })
-        .then(function() {
-          t.closePopup();
+        .then(async function(token) {
+          try {
+            // Use retry logic for the authorization process
+            await retryOperation(() => handleTrelloAuth(token));
+            
+            // Store success status
+            await t.set('board', 'shared', 'trelloAuthorized', true);
+            
+            // Redirect to GitHub authorization
+            window.location.href = `${BACKEND_URL}/auth/github`;
+            
+          } catch (error) {
+            console.error('Authorization failed:', error);
+            t.alert({
+              message: 'Authorization failed. Please try again.',
+              duration: 6,
+              display: 'error'
+            });
+          } finally {
+            t.closePopup();
+          }
         })
         .catch(function(err) {
           console.error('Failed to authorize', err);
+          t.alert({
+            message: 'Failed to complete authorization. Please try again.',
+            duration: 6,
+            display: 'error'
+          });
         });
     });
   </script>
 </body>
-</html> 
+</html>

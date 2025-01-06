@@ -1,145 +1,232 @@
-# Authentication Flow
-
-The CodeAIgent Power-Up uses Trello's OAuth authentication flow to authorize users and obtain access tokens for API operations.
+# Authentication Flow Implementation
 
 ## Overview
+This document outlines the secure authentication flow implementation for the NestJS backend, handling Trello token registration and webhook setup.
 
-The authentication flow involves three main components:
-1. The Power-Up's authorization popup (`auth.html`)
-2. Trello's OAuth authorization page
-3. The success callback page (`auth-success.html`)
+## Security Middleware
 
-## Flow Diagram
+```typescript
+// src/auth/middleware/auth.middleware.ts
+@Injectable()
+export class AuthValidationMiddleware implements NestMiddleware {
+  constructor(private configService: ConfigService) {}
 
-```
-User clicks "Authorize" → Power-Up opens auth popup → Trello OAuth page → Success callback → Token stored
-```
+  async use(req: Request, res: Response, next: NextFunction) {
+    const timestamp = req.header('X-Request-Timestamp');
+    const signature = req.header('X-Request-Signature');
+    const powerUpToken = req.header('X-Power-Up-Token');
+    const trelloToken = req.header('X-Trello-Token');
 
-## Implementation Details
+    // Validate timestamp (prevent replay attacks)
+    const now = Date.now();
+    if (Math.abs(now - parseInt(timestamp)) > 300000) { // 5 minutes
+      throw new UnauthorizedException('Request expired');
+    }
 
-### 1. Initial Authorization Request
+    // Validate Power-Up token
+    if (powerUpToken !== this.configService.get('POWERUP_API_KEY')) {
+      throw new UnauthorizedException('Invalid Power-Up');
+    }
 
-In `auth.html`, we construct the authorization URL:
+    // Verify request signature
+    const expectedSignature = await this.generateSignature(req.body, timestamp);
+    if (signature !== expectedSignature) {
+      throw new UnauthorizedException('Invalid signature');
+    }
 
-```javascript
-var appName = encodeURIComponent('CodeAIgent');
-var returnUrl = encodeURIComponent(window.location.origin + '/trello-powerup/auth-success.html');
-
-var authUrl = 'https://trello.com/1/authorize?' +
-  'expiration=never' +
-  '&name=' + appName +
-  '&scope=read,write' +
-  '&key=' + POWERUP_API_KEY +
-  '&callback_method=fragment' +
-  '&return_url=' + returnUrl;
-```
-
-Parameters explained:
-- `expiration=never`: Token doesn't expire
-- `scope=read,write`: Permissions requested
-- `callback_method=fragment`: Token returned in URL fragment
-- `return_url`: Where Trello redirects after authorization
-
-### 2. Authorization Window
-
-We open the authorization window with specific options:
-
-```javascript
-var authorizeOpts = {
-  height: 680,
-  width: 580,
-  validToken: function(token) {
-    return token && token.length > 0;
+    // Add validated token to request
+    req['trelloToken'] = trelloToken;
+    next();
   }
-};
 
-t.authorize(authUrl, authorizeOpts)
-```
-
-### 3. Success Callback
-
-In `auth-success.html`, we handle the token:
-
-```javascript
-// Extract token from URL fragment
-var hashParams = window.location.hash.substring(1).split('&').reduce(function(params, param) {
-  var parts = param.split('=');
-  params[parts[0]] = decodeURIComponent(parts[1]);
-  return params;
-}, {});
-
-var token = hashParams.token;
-
-// Try window.opener.authorize first, fallback to localStorage
-if (window.opener && typeof window.opener.authorize === 'function') {
-  window.opener.authorize(token);
-} else {
-  localStorage.setItem('token', token);
+  private async generateSignature(data: any, timestamp: string): Promise<string> {
+    const message = timestamp + JSON.stringify(data);
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 }
 ```
 
-### 4. Token Storage
+## API Endpoint
 
-The token is stored in Trello's Power-Up storage:
+```typescript
+// src/auth/auth.controller.ts
+@Controller('api/auth')
+@UseGuards(AuthGuard)
+export class AuthController {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly webhookService: WebhookService,
+  ) {}
 
-```javascript
-t.set('member', 'private', 'authToken', token)
+  @Post('trello')
+  async registerTrelloAuth(
+    @Headers('X-Trello-Token') token: string,
+    @Body() authData: TrelloAuthDto
+  ) {
+    return this.authService.registerTrelloAuth(token, authData);
+  }
+}
+
+// src/auth/dto/trello-auth.dto.ts
+export class TrelloAuthDto {
+  member: {
+    id: string;
+    username: string;
+    email: string;
+  };
+  board: {
+    id: string;
+    name: string;
+  };
+}
 ```
 
-This makes the token:
-- Private to each user
-- Accessible only through the Power-Up
-- Persistent across sessions
+## Auth Service with Encryption
 
-## Security Considerations
+```typescript
+// src/auth/auth.service.ts
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly webhookService: WebhookService,
+    private readonly configService: ConfigService,
+    @InjectRepository(UserAuth)
+    private readonly userAuthRepo: Repository<UserAuth>,
+  ) {}
 
-1. **API Key Protection**
-   - API key is injected during deployment
-   - Never committed to source control
-   - Stored in GitHub secrets
+  async registerTrelloAuth(token: string, authData: TrelloAuthDto) {
+    // Encrypt token before storing
+    const encryptedToken = await this.encryptToken(token);
+
+    // 1. Store user and encrypted token information
+    const userAuth = await this.userAuthRepo.save({
+      trelloUserId: authData.member.id,
+      trelloUsername: authData.member.username,
+      trelloEmail: authData.member.email,
+      trelloToken: encryptedToken,
+      boardId: authData.board.id,
+      boardName: authData.board.name,
+    });
+
+    // 2. Create webhooks for the board using original token
+    await this.webhookService.createBoardWebhooks(
+      authData.board.id,
+      token,
+    );
+
+    return {
+      success: true,
+      userId: userAuth.id,
+    };
+  }
+
+  private async encryptToken(token: string): Promise<string> {
+    const key = this.configService.get('ENCRYPTION_KEY');
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    
+    let encrypted = cipher.update(token, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    const authTag = cipher.getAuthTag();
+    
+    // Store IV and auth tag with the encrypted data
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  }
+
+  async decryptToken(encryptedData: string): Promise<string> {
+    const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
+    const key = this.configService.get('ENCRYPTION_KEY');
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  }
+}
+```
+
+## Environment Variables
+
+```env
+POWERUP_API_KEY=your_trello_api_key
+WEBHOOK_CALLBACK_URL=https://your-backend-url.com
+ENCRYPTION_KEY=your-32-byte-encryption-key
+```
+
+## Security Measures
+
+1. **Transport Security**
+   - Force HTTPS using Helmet middleware
+   - Implement CORS for Power-Up domain only
+
+```typescript
+// src/main.ts
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  // Enable HTTPS-only
+  app.use(helmet());
+  
+  // Configure CORS
+  app.enableCors({
+    origin: process.env.POWERUP_DOMAIN,
+    methods: ['POST'],
+    allowedHeaders: [
+      'Content-Type',
+      'X-Trello-Token',
+      'X-Request-Timestamp',
+      'X-Request-Signature',
+      'X-Power-Up-Token'
+    ],
+  });
+
+  await app.listen(3000);
+}
+```
 
 2. **Token Security**
-   - Tokens are stored privately per user
-   - Never exposed in client-side code
-   - Used only for authorized API calls
+   - Tokens encrypted at rest using AES-256-GCM
+   - Tokens transmitted in headers
+   - Request signing prevents tampering
+   - Timestamp validation prevents replay attacks
 
-3. **Scope Limitations**
-   - Only requesting necessary permissions
-   - Read/write scope for minimal functionality
-   - User can revoke access anytime
+3. **Database Security**
+   - Encrypted tokens in database
+   - No plain text sensitive data
+   - Separate encryption key from application
 
-## Usage in API Calls
+## Error Handling
 
-The stored token is used for authenticated API calls:
+```typescript
+@Injectable()
+export class AuthService {
+  async registerTrelloAuth(token: string, authData: TrelloAuthDto) {
+    try {
+      // ... implementation ...
+    } catch (error) {
+      this.logger.error('Failed to register Trello auth', {
+        error,
+        userId: authData.member.id,
+        boardId: authData.board.id,
+      });
 
-```javascript
-fetch(`https://api.trello.com/1/boards/${board.id}/members?key=${POWERUP_API_KEY}&token=${authToken}`, {
-  method: 'PUT',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    email: BOT_EMAIL,
-    type: 'normal'
-  })
-});
-```
-
-## Troubleshooting
-
-Common issues and solutions:
-
-1. **Token Not Found**
-   - Check if authorization completed successfully
-   - Verify token storage in Power-Up storage
-   - Try re-authorizing
-
-2. **Authorization Failed**
-   - Verify API key is correct
-   - Check allowed origins in Power-Up settings
-   - Ensure return URL is properly configured
-
-3. **API Calls Failing**
-   - Verify token permissions
-   - Check token hasn't expired
-   - Ensure API key is valid 
+      if (error.response?.status === 401) {
+        throw new UnauthorizedException('Invalid Trello token');
+      }
+      if (error instanceof TokenEncryptionError) {
+        throw new InternalServerErrorException('Failed to secure token');
+      }
+      throw new InternalServerErrorException('Failed to register auth');
+    }
+  }
+}
+``` 

@@ -21,8 +21,15 @@ jobs:
 
       - name: Create production config
         run: |
-          echo "const POWERUP_API_KEY = '${{ secrets.TRELLO_API_KEY }}'" > config.js
-          echo "const BOT_EMAIL = '${{ secrets.BOT_EMAIL }}'" >> config.js
+          echo "// Auto-generated config file - DO NOT EDIT" > config.js
+          echo "const POWERUP_API_KEY = '${{ secrets.TRELLO_API_KEY }}';" >> config.js
+          echo "const BOT_EMAIL = '${{ secrets.BOT_EMAIL }}';" >> config.js
+          # echo "const BACKEND_URL = '${{ secrets.BACKEND_URL }}';" >> config.js
+          echo "" >> config.js
+          echo "// Validate required configuration" >> config.js
+          echo "if (!POWERUP_API_KEY) throw new Error('TRELLO_API_KEY is required');" >> config.js
+          echo "if (!BOT_EMAIL) throw new Error('BOT_EMAIL is required');" >> config.js
+          echo "if (!BACKEND_URL) throw new Error('BACKEND_URL is required');" >> config.js
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
