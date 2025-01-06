@@ -176,18 +176,17 @@ async function bootstrap() {
   // Enable HTTPS-only
   app.use(helmet());
   
-  // Configure CORS
+  // Configure CORS - simpler configuration without credentials
   app.enableCors({
-    origin: 'https://codeaigent.github.io',
-    methods: ['POST', 'OPTIONS'],
+    origin: '*',  // Allow all origins since we're not using credentials
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'X-Trello-Token',
       'X-Request-Timestamp',
       'X-Request-Signature',
       'X-Power-Up-Token'
-    ],
-    credentials: true
+    ]
   });
 
   await app.listen(3000);
