@@ -129,7 +129,8 @@
             'X-Power-Up-Token': POWERUP_API_KEY
           },
           body: JSON.stringify(requestData),
-          credentials: 'include'  // Important for cookie handling
+          credentials: 'include',  // Keep this for session handling
+          mode: 'cors'  // Explicitly set CORS mode
         });
 
         if (!response.ok) {

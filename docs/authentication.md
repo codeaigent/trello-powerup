@@ -178,8 +178,8 @@ async function bootstrap() {
   
   // Configure CORS
   app.enableCors({
-    origin: process.env.POWERUP_DOMAIN,
-    methods: ['POST'],
+    origin: 'https://codeaigent.github.io',
+    methods: ['POST', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'X-Trello-Token',
@@ -187,6 +187,7 @@ async function bootstrap() {
       'X-Request-Signature',
       'X-Power-Up-Token'
     ],
+    credentials: true
   });
 
   await app.listen(3000);
