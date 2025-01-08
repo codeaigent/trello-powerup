@@ -24,7 +24,7 @@ jobs:
           echo "// Auto-generated config file - DO NOT EDIT" > config.js
           echo "const POWERUP_API_KEY = '${{ secrets.TRELLO_API_KEY }}';" >> config.js
           echo "const BOT_EMAIL = '${{ secrets.BOT_EMAIL }}';" >> config.js
-          echo "const BACKEND_URL = 'https://650d-217-105-25-244.ngrok-free.app';" >> config.js
+          echo "const BACKEND_URL = 'https://f474-217-105-25-244.ngrok-free.app';" >> config.js
           echo "" >> config.js
           echo "// Validate required configuration" >> config.js
           echo "if (!POWERUP_API_KEY) throw new Error('TRELLO_API_KEY is required');" >> config.js
