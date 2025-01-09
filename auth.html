@@ -119,13 +119,11 @@
 
         const signature = await generateSignature(requestData, timestamp);
 
-        const response = await fetch(`${BACKEND_URL}/api/auth/trello`, {
+        const response = await fetch(`${BACKEND_URL}/validate/trello/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Trello-Token': token,
-            'X-Request-Timestamp': timestamp,
-            'X-Request-Signature': signature,
+            'Authorization': `Bearer ${token}`,
             'X-Power-Up-Token': POWERUP_API_KEY
           },
           body: JSON.stringify(requestData),
