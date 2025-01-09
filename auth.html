@@ -32,7 +32,7 @@
 
     // Construct the auth URL with all required scopes
     var appName = encodeURIComponent('CodeAIgent');
-    var returnUrl = encodeURIComponent(`${BACKEND_URL}/trello/callback`);
+    var returnUrl = encodeURIComponent(window.location.origin + '/trello-powerup/auth-success.html');
     
     var authUrl = 'https://trello.com/1/authorize?' +
       'expiration=never' +
@@ -51,36 +51,120 @@
       }
     };
 
+    // Helper functions for authentication and session management
+    const MAX_RETRIES = 3;
+
+    async function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function retryOperation(operation) {
+      let lastError;
+      
+      for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error;
+          console.error(`Attempt ${i + 1} failed:`, error);
+          if (i < MAX_RETRIES - 1) {
+            await wait(Math.pow(2, i) * 1000);
+          }
+        }
+      }
+      
+      throw lastError;
+    }
+
+    async function generateSignature(data, timestamp) {
+      const message = timestamp + JSON.stringify(data);
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function getMemberInfo() {
+      const member = await t.member('id', 'fullName', 'username');
+      console.log('Retrieved member info:', member); // Debug log
+      return member;
+    }
+
+    async function handleTrelloAuth(token) {
+      // First store the token in Power-Up storage
+      await t.set('member', 'private', 'authToken', token);
+      
+      try {
+        // Get all required data in parallel
+        const [member, board] = await Promise.all([
+          getMemberInfo(),
+          t.board('id', 'name')
+        ]);
+
+        console.log('Member info:', member); // Debug log
+        console.log('Board info:', board);   // Debug log
+
+        const timestamp = Date.now().toString();
+        const requestData = {
+          member: {
+            id: member.id,
+            username: member.username,
+            fullName: member.fullName
+          },
+          board: {
+            id: board.id,
+            name: board.name
+          }
+        };
+
+        const signature = await generateSignature(requestData, timestamp);
+
+        const response = await fetch(`${BACKEND_URL}/validate/trello/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'X-Power-Up-Token': POWERUP_API_KEY
+          },
+          body: JSON.stringify(requestData),
+          mode: 'cors'  // Keep CORS mode but remove credentials
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        // Store the session ID/token from backend
+        await t.set('member', 'private', 'sessionId', result.sessionId);
+        
+        return result;
+      } catch (error) {
+        console.error('Error in handleTrelloAuth:', error);
+        throw error;
+      }
+    }
+
     // Click handler for the authorize button
     document.getElementById('authorize').addEventListener('click', function() {
       t.authorize(authUrl, authorizeOpts)
         .then(async function(token) {
           try {
-            console.log('Authorization successful, redirecting to callback');
-            // Store token in Power-Up storage for future use
-            await t.set('member', 'private', 'authToken', token);
+            console.log('Authorization successful, token received'); // Debug log
             
-            // Get member and board info
-            const [member, board] = await Promise.all([
-              t.member('id', 'fullName', 'username'),
-              t.board('id', 'name')
-            ]);
-
-            // Construct the state parameter with member and board info
-            const state = encodeURIComponent(JSON.stringify({
-              member: {
-                id: member.id,
-                username: member.username,
-                fullName: member.fullName
-              },
-              board: {
-                id: board.id,
-                name: board.name
-              }
-            }));
-
-            // Redirect to the backend callback with the token and state
-            window.location.href = `${BACKEND_URL}/trello/callback#token=${token}&state=${state}`;
+            // Use retry logic for the authorization process
+            await retryOperation(() => handleTrelloAuth(token));
+            
+            console.log('Backend authorization successful'); // Debug log
+            
+            // Store success status
+            await t.set('board', 'shared', 'trelloAuthorized', true);
+            
+            // Redirect to GitHub authorization
+            window.location.href = `${BACKEND_URL}/auth/github`;
+            
           } catch (error) {
             console.error('Authorization failed:', error);
             t.alert({
@@ -88,6 +172,7 @@
               duration: 6,
               display: 'error'
             });
+          } finally {
             t.closePopup();
           }
         })
@@ -98,7 +183,6 @@
             duration: 6,
             display: 'error'
           });
-          t.closePopup();
         });
     });
   </script>
