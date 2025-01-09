@@ -117,14 +117,14 @@
           }
         };
 
-        const signature = await generateSignature(requestData, timestamp);
+        // Encode token to base64
+        const encodedToken = btoa(token);
 
         const response = await fetch(`${BACKEND_URL}/validate/trello/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'X-Power-Up-Token': POWERUP_API_KEY
+            'X-Trello-Token': encodedToken
           },
           body: JSON.stringify(requestData),
           mode: 'cors'  // Keep CORS mode but remove credentials
