@@ -101,10 +101,6 @@
           t.board('id', 'name')
         ]);
 
-        console.log('Member info:', member); // Debug log
-        console.log('Board info:', board);   // Debug log
-
-        const timestamp = Date.now().toString();
         const requestData = {
           member: {
             id: member.id,
@@ -128,7 +124,7 @@
             'X-Power-Up-Token': POWERUP_API_KEY
           },
           body: JSON.stringify(requestData),
-          mode: 'cors'  // Keep CORS mode but remove credentials
+          mode: 'cors'
         });
 
         if (!response.ok) {
@@ -153,15 +149,18 @@
       t.authorize(authUrl, authorizeOpts)
         .then(async function(token) {
           try {
-            console.log('Authorization successful, token received'); // Debug log
-            
             // Use retry logic for the authorization process
             await retryOperation(() => handleTrelloAuth(token));
             
-            console.log('Backend authorization successful'); // Debug log
-            
             // Store success status
             await t.set('board', 'shared', 'trelloAuthorized', true);
+            
+            // Show success alert
+            t.alert({
+              message: 'Successfully authorized with Trello!',
+              duration: 3,
+              display: 'success'
+            });
             
             // Redirect to GitHub authorization
             window.location.href = `${BACKEND_URL}/auth/github`;
