@@ -124,7 +124,8 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Trello-Token': encodedToken
+            'jwt': `Bearer ${encodedToken}`,
+            'X-Power-Up-Token': POWERUP_API_KEY
           },
           body: JSON.stringify(requestData),
           mode: 'cors'  // Keep CORS mode but remove credentials
