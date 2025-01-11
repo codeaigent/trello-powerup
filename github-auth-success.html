@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GitHub Authorization Success</title>
+  <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script src="./config.js"></script>
+  <style>
+    .content {
+      padding: 1rem;
+      text-align: center;
+    }
+    .success-icon {
+      font-size: 48px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <div class="success-icon">✓</div>
+    <h2>GitHub Authorization</h2>
+    <p id="status">Processing authorization...</p>
+  </div>
+
+  <script>
+    var t = TrelloPowerUp.iframe();
+
+    // Get code and state from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+
+    // Validate state and exchange code for token
+    t.get('member', 'private', 'githubOAuthState')
+      .then(function(savedState) {
+        if (state !== savedState) {
+          throw new Error('Invalid state parameter');
+        }
+        
+        // Exchange code for token using backend
+        return fetch(`${BACKEND_URL}/github/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ code })
+        });
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Store the GitHub token
+        return t.set('member', 'private', 'githubToken', data.access_token);
+      })
+      .then(() => {
+        document.getElementById('status').textContent = 'GitHub account connected successfully!';
+        // Close the popup after a short delay
+        setTimeout(() => {
+          t.closePopup();
+        }, 1500);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('status').textContent = 'Failed to connect GitHub account. Please try again.';
+      });
+  </script>
+</body>
+</html> 
