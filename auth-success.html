@@ -2,43 +2,55 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Authorization Success</title>
+  <title>GitHub Authorization Success</title>
+  <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
   <script src="./config.js"></script>
-  <script>
-    // Get the token from the URL fragment
-    var hashParams = window.location.hash.substring(1).split('&').reduce(function(params, param) {
-      var parts = param.split('=');
-      params[parts[0]] = decodeURIComponent(parts[1]);
-      return params;
-    }, {});
-
-    var token = hashParams.token;
-
-    // Try to use window.opener.authorize first
-    let authorize;
-    try {
-      if (window.opener && typeof window.opener.authorize === 'function') {
-        authorize = window.opener.authorize;
-      }
-    } catch (e) {
-      // Security settings are preventing this, fall back to local storage
-      console.log('Could not access opener, falling back to localStorage');
-    }
-
-    if (authorize) {
-      authorize(token);
-    } else {
-      localStorage.setItem('token', token);
-    }
-
-    // Close the window after a short delay
-    setTimeout(function() {
-      window.close();
-    }, 1000);
-  </script>
 </head>
 <body>
-  <h1>Authorization Successful!</h1>
-  <p>You can close this window now.</p>
+  <h1>GitHub Authorization</h1>
+  <p id="status">Processing authorization...</p>
+
+  <script>
+    var t = TrelloPowerUp.iframe();
+
+    // Get code and state from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+
+    // Validate state and exchange code for token
+    t.get('member', 'private', 'githubOAuthState')
+      .then(function(savedState) {
+        if (state !== savedState) {
+          throw new Error('Invalid state parameter');
+        }
+        
+        // Exchange code for token using backend
+        return fetch(`${BACKEND_URL}/github/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ code })
+        });
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Store the GitHub token
+        return t.set('member', 'private', 'githubToken', data.access_token);
+      })
+      .then(() => {
+        document.getElementById('status').textContent = 'GitHub account connected successfully!';
+        // Close the popup after a short delay
+        setTimeout(() => {
+          t.closePopup();
+        }, 1500);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('status').textContent = 'Failed to connect GitHub account. Please try again.';
+      });
+  </script>
 </body>
 </html> 
