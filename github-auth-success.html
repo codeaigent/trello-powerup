@@ -19,7 +19,7 @@
 </head>
 <body>
   <div class="content">
-    <div class="success-icon">✓</div>
+    <div class="success-icon">⚪</div>
     <h2>GitHub Authorization</h2>
     <p id="status">Processing authorization...</p>
   </div>
@@ -32,6 +32,11 @@
     const code = urlParams.get('code');
     const state = urlParams.get('state');
 
+    // Helper function to encode token
+    function encodeToken(token) {
+      return btoa(token);
+    }
+
     // Validate state and exchange code for token
     t.get('member', 'private', 'githubOAuthState')
       .then(function(savedState) {
@@ -40,21 +45,36 @@
         }
         
         // Exchange code for token using backend
-        return fetch(`${BACKEND_URL}/github/token`, {
+        return fetch(`${BACKEND_URL}/validate/github/token`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${encodeToken(code)}`,
+            'x-power-up-token': POWERUP_API_KEY
           },
-          body: JSON.stringify({ code })
+          body: JSON.stringify({
+            member: {
+              id: t.getContext().member
+            },
+            board: {
+              id: t.getContext().board
+            }
+          })
         });
       })
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
         // Store the GitHub token
         return t.set('member', 'private', 'githubToken', data.access_token);
       })
       .then(() => {
         document.getElementById('status').textContent = 'GitHub account connected successfully!';
+        document.querySelector('.success-icon').textContent = '✅';
         // Close the popup after a short delay
         setTimeout(() => {
           t.closePopup();
@@ -63,6 +83,7 @@
       .catch(error => {
         console.error('Error:', error);
         document.getElementById('status').textContent = 'Failed to connect GitHub account. Please try again.';
+        document.querySelector('.success-icon').textContent = '❌';
       });
   </script>
 </body>
