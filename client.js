@@ -62,38 +62,8 @@ window.TrelloPowerUp.initialize({
   'show-settings': function(t, options) {
     return t.popup({
       title: 'CodeAIgent Settings',
-      items: [
-        {
-          text: '🔗 Connect GitHub',
-          callback: function(t) {
-            return t.popup({
-              title: 'GitHub Authorization',
-              url: './authorize-github.html',
-              height: 140,
-            });
-          }
-        },
-        {
-          text: '⚙️ Repository Settings',
-          callback: function(t) {
-            return t.get('member', 'private', 'githubToken')
-              .then(function(githubToken) {
-                if (!githubToken) {
-                  return t.alert({
-                    message: 'Please connect your GitHub account first',
-                    duration: 5,
-                    display: 'warning'
-                  });
-                }
-                return t.popup({
-                  title: 'Repository Settings',
-                  url: './repository-settings.html',
-                  height: 400,
-                });
-              });
-          }
-        }
-      ]
+      url: './settings.html',
+      height: 250
     });
   },
 
