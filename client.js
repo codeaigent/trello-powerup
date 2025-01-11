@@ -40,9 +40,14 @@ function addBotToBoard(t, token) {
 // This is the main initialization function that Trello will call
 window.TrelloPowerUp.initialize({
   'authorization-status': function(t, options) {
-    return t.get('member', 'private', 'authToken')
-    .then(function(authToken) {
-      return { authorized: authToken != null }
+    return Promise.all([
+      t.get('member', 'private', 'authToken'),
+      t.get('member', 'private', 'githubToken')
+    ]).then(function([authToken, githubToken]) {
+      return { 
+        authorized: authToken != null,
+        githubConnected: githubToken != null
+      };
     });
   },
 
@@ -51,6 +56,44 @@ window.TrelloPowerUp.initialize({
       title: 'CodeAIgent Authorization',
       url: './auth.html',
       height: 140,
+    });
+  },
+
+  'show-settings': function(t, options) {
+    return t.popup({
+      title: 'CodeAIgent Settings',
+      items: [
+        {
+          text: '🔗 Connect GitHub',
+          callback: function(t) {
+            return t.popup({
+              title: 'GitHub Authorization',
+              url: './authorize-github.html',
+              height: 140,
+            });
+          }
+        },
+        {
+          text: '⚙️ Repository Settings',
+          callback: function(t) {
+            return t.get('member', 'private', 'githubToken')
+              .then(function(githubToken) {
+                if (!githubToken) {
+                  return t.alert({
+                    message: 'Please connect your GitHub account first',
+                    duration: 5,
+                    display: 'warning'
+                  });
+                }
+                return t.popup({
+                  title: 'Repository Settings',
+                  url: './repository-settings.html',
+                  height: 400,
+                });
+              });
+          }
+        }
+      ]
     });
   },
 
