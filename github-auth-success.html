@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <title>GitHub Authorization Success</title>
-  <script src="https://p.trellocdn.com/power-up.min.js"></script>
   <style>
     body {
       padding: 1rem;
@@ -23,30 +22,42 @@
       display: none;
       margin: 20px 0;
     }
+    .retry-button {
+      background: #0079bf;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .retry-button:hover {
+      background: #026aa7;
+    }
   </style>
 </head>
 <body>
-  <div id="content">
-    <h1>GitHub Authorization</h1>
-    <div id="status" class="status">Processing authorization...</div>
-    <div id="success" class="success">
-      <h2>✅ Authorization Successful!</h2>
-      <p>This window will close automatically.</p>
-    </div>
-    <div id="error" class="error">
-      <h2>❌ Authorization Failed</h2>
-      <p id="error-message"></p>
-    </div>
+  <h1>GitHub Authorization</h1>
+  <div id="status" class="status">Processing authorization...</div>
+  <div id="success" class="success">
+    <h2>✅ Authorization Successful!</h2>
+    <p>This window will close automatically.</p>
+  </div>
+  <div id="error" class="error">
+    <h2>❌ Authorization Failed</h2>
+    <p id="error-message"></p>
+    <button id="retry-btn" class="retry-button">Try Again</button>
   </div>
 
   <script>
-    const t = window.TrelloPowerUp.iframe();
     const statusEl = document.getElementById('status');
     const successEl = document.getElementById('success');
     const errorEl = document.getElementById('error');
     const errorMessageEl = document.getElementById('error-message');
+    const retryBtn = document.getElementById('retry-btn');
 
-    // Get code and state from URL
+    // Get code from URL
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
@@ -62,27 +73,58 @@
     function showSuccess() {
       statusEl.style.display = 'none';
       successEl.style.display = 'block';
+      setTimeout(() => window.close(), 1500);
     }
 
-    // Process the authorization
-    if (code && state) {
-      // Call the authorize function in the parent window
-      t.arg('authorize')(code, state)
-        .then(() => {
-          showSuccess();
-          setTimeout(() => t.closePopup(), 1500);
-        })
-        .catch((error) => {
-          showError(error.message);
-          setTimeout(() => t.closePopup(), 3000);
+    // Function to retry authorization
+    function retryAuth() {
+      if (window.opener && window.opener.retryGitHubAuth) {
+        window.opener.retryGitHubAuth();
+        window.close();
+      } else {
+        showError('Could not communicate with the main window. Please close this window and try again.');
+      }
+    }
+
+    // Add retry button handler
+    retryBtn.addEventListener('click', retryAuth);
+
+    // Try to use window.opener to pass back the code
+    if (window.opener) {
+      try {
+        // Create a promise that will resolve when we get a response
+        const authPromise = new Promise((resolve, reject) => {
+          // Set up message listener
+          window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'github-auth-response') {
+              if (event.data.success) {
+                resolve();
+              } else {
+                reject(new Error(event.data.error || 'Authorization failed'));
+              }
+            }
+          });
+
+          // Send the code to the opener
+          window.opener.authorize(code, state);
         });
-    } else {
-      showError('No authorization code received');
-      setTimeout(() => t.closePopup(), 3000);
-    }
 
-    // Ensure our iframe is sized correctly
-    t.sizeTo('#content');
+        // Wait for the response
+        authPromise
+          .then(() => {
+            showSuccess();
+          })
+          .catch((error) => {
+            showError(error.message);
+          });
+
+      } catch (e) {
+        showError('Could not communicate with the main window. Please try again.');
+        console.error('Could not access opener:', e);
+      }
+    } else {
+      showError('Could not find the main window. Please try again.');
+    }
   </script>
 </body>
 </html> 
