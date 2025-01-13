@@ -39,21 +39,29 @@
       debugEl.innerHTML += `<div>${message}: ${JSON.stringify(data)}</div>`;
     }
 
+    // Get URL parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const boardId = urlParams.get('boardId');
+    const memberId = urlParams.get('memberId');
+
+    log('Received params', { 
+      code: code?.substring(0, 5) + '...', 
+      state,
+      boardId,
+      memberId
+    });
+
+    // Initialize Trello client with context
     var t = TrelloPowerUp.iframe({
       appKey: POWERUP_API_KEY,
       appName: 'CodeAIgent',
       context: { 
-        board: urlParams.get('boardId') || window.location.hash.split('=')[1],
-        member: urlParams.get('memberId')
+        board: boardId,
+        member: memberId
       }
     });
-
-    // Get code and state from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-
-    log('Received params', { code: code?.substring(0, 5) + '...', state });
 
     // Helper function to encode token
     function encodeToken(token) {
