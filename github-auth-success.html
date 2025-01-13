@@ -107,6 +107,8 @@
 
           // Send the code to the opener
           window.opener.authorize(code, state);
+          // Close the window
+          window.close();
         });
 
         // Wait for the response
@@ -121,9 +123,11 @@
       } catch (e) {
         showError('Could not communicate with the main window. Please try again.');
         console.error('Could not access opener:', e);
+        window.close();
       }
     } else {
       showError('Could not find the main window. Please try again.');
+      window.close();
     }
   </script>
 </body>
