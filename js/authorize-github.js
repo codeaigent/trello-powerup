@@ -13,6 +13,19 @@ authBtn.addEventListener('click', function() {
   // Store state for validation
   t.set('member', 'private', 'githubOAuthState', state)
     .then(function() {
-      window.location.href = `${githubAuthUrl}?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${state}`;
+      // Open GitHub auth in a new window
+      const width = 580;
+      const height = 600;
+      const left = (window.screen.width / 2) - (width / 2);
+      const top = (window.screen.height / 2) - (height / 2);
+
+      const authWindow = window.open(
+        `${githubAuthUrl}?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${state}`,
+        'GitHubAuth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      // Close the popup that opened the auth window
+      t.closePopup();
     });
 }); 

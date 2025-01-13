@@ -25,7 +25,10 @@
   </div>
 
   <script>
-    var t = TrelloPowerUp.iframe();
+    var t = TrelloPowerUp.iframe({
+      appKey: POWERUP_API_KEY,
+      appName: 'CodeAIgent'
+    });
 
     // Get code and state from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -35,6 +38,24 @@
     // Helper function to encode token
     function encodeToken(token) {
       return btoa(token);
+    }
+
+    // Function to notify the Power-Up that GitHub is connected
+    function notifyPowerUp(success) {
+      // Try to find any opener window that might be the Trello tab
+      if (window.opener) {
+        try {
+          window.opener.postMessage(
+            { 
+              type: 'github-auth-callback',
+              success: success
+            }, 
+            '*'
+          );
+        } catch (e) {
+          console.error('Failed to notify opener:', e);
+        }
+      }
     }
 
     // Validate state and exchange code for token
@@ -70,20 +91,22 @@
       })
       .then(data => {
         // Store the GitHub token
-        return t.set('member', 'private', 'githubToken', data.access_token);
-      })
-      .then(() => {
-        document.getElementById('status').textContent = 'GitHub account connected successfully!';
-        document.querySelector('.success-icon').textContent = '✅';
-        // Close the popup after a short delay
-        setTimeout(() => {
-          t.closePopup();
-        }, 1500);
+        return t.set('member', 'private', 'githubToken', data.access_token)
+          .then(() => {
+            document.getElementById('status').textContent = 'GitHub account connected successfully!';
+            document.querySelector('.success-icon').textContent = '✅';
+            notifyPowerUp(true);
+            // Close the window after a short delay
+            setTimeout(() => {
+              window.close();
+            }, 1500);
+          });
       })
       .catch(error => {
         console.error('Error:', error);
         document.getElementById('status').textContent = 'Failed to connect GitHub account. Please try again.';
         document.querySelector('.success-icon').textContent = '❌';
+        notifyPowerUp(false);
       });
   </script>
 </body>

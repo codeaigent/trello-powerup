@@ -61,24 +61,48 @@
     const githubSettingsBtn = document.getElementById('github-settings-btn');
 
     // Check authorization status
-    Promise.all([
-      t.get('member', 'private', 'authToken'),
-      t.get('member', 'private', 'githubToken')
-    ]).then(([trelloToken, githubToken]) => {
-      // Update Trello status
-      if (trelloToken) {
-        trelloStatusEl.innerHTML = '<span class="status-icon">✅</span><span>Connected to Trello</span>';
-      } else {
-        trelloStatusEl.innerHTML = '<span class="status-icon">❌</span><span>Not connected to Trello</span>';
-      }
+    function checkAuthStatus() {
+      Promise.all([
+        t.get('member', 'private', 'authToken'),
+        t.get('member', 'private', 'githubToken')
+      ]).then(([trelloToken, githubToken]) => {
+        // Update Trello status
+        if (trelloToken) {
+          trelloStatusEl.innerHTML = '<span class="status-icon">✅</span><span>Connected to Trello</span>';
+        } else {
+          trelloStatusEl.innerHTML = '<span class="status-icon">❌</span><span>Not connected to Trello</span>';
+        }
 
-      // Update GitHub status
-      if (githubToken) {
-        githubStatusEl.innerHTML = '<span class="status-icon">✅</span><span>Connected to GitHub</span>';
-        githubSettingsBtn.style.display = 'block';
-      } else {
-        githubStatusEl.innerHTML = '<span class="status-icon">❌</span><span>Not connected to GitHub</span>';
-        githubConnectBtn.style.display = 'block';
+        // Update GitHub status
+        if (githubToken) {
+          githubStatusEl.innerHTML = '<span class="status-icon">✅</span><span>Connected to GitHub</span>';
+          githubSettingsBtn.style.display = 'block';
+          githubConnectBtn.style.display = 'none';
+        } else {
+          githubStatusEl.innerHTML = '<span class="status-icon">❌</span><span>Not connected to GitHub</span>';
+          githubConnectBtn.style.display = 'block';
+          githubSettingsBtn.style.display = 'none';
+        }
+      });
+    }
+
+    // Listen for GitHub auth callback
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'github-auth-callback') {
+        if (event.data.success) {
+          checkAuthStatus();
+          t.alert({
+            message: 'GitHub account connected successfully!',
+            duration: 5,
+            display: 'success'
+          });
+        } else {
+          t.alert({
+            message: 'Failed to connect GitHub account. Please try again.',
+            duration: 5,
+            display: 'error'
+          });
+        }
       }
     });
 
@@ -99,6 +123,9 @@
         height: 400,
       });
     });
+
+    // Initial check
+    checkAuthStatus();
   </script>
 </body>
 </html> 
