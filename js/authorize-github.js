@@ -7,7 +7,7 @@ authBtn.addEventListener('click', function() {
   const githubAuthUrl = 'https://github.com/login/oauth/authorize';
   const clientId = 'Iv23liFtRuiAll1ckg4i';
   const scope = 'repo read:user';
-  const redirectUri = `${window.location.origin}/github-auth-success.html`;
+  const redirectUri = `${window.location.origin}/trello-powerup/github-auth-success.html`;
   const state = Math.random().toString(36).substring(7); // Generate random state
 
   // Store state for validation
