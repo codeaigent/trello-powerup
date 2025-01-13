@@ -15,6 +15,13 @@
       font-size: 48px;
       margin-bottom: 1rem;
     }
+    .debug {
+      margin-top: 1rem;
+      font-size: 12px;
+      color: #666;
+      text-align: left;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -22,18 +29,31 @@
     <div class="success-icon">⚪</div>
     <h2>GitHub Authorization</h2>
     <p id="status">Processing authorization...</p>
+    <div id="debug" class="debug"></div>
   </div>
 
   <script>
+    const debugEl = document.getElementById('debug');
+    function log(message, data) {
+      console.log(message, data);
+      debugEl.innerHTML += `<div>${message}: ${JSON.stringify(data)}</div>`;
+    }
+
     var t = TrelloPowerUp.iframe({
       appKey: POWERUP_API_KEY,
-      appName: 'CodeAIgent'
+      appName: 'CodeAIgent',
+      context: { 
+        board: urlParams.get('boardId') || window.location.hash.split('=')[1],
+        member: urlParams.get('memberId')
+      }
     });
 
     // Get code and state from URL
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
+
+    log('Received params', { code: code?.substring(0, 5) + '...', state });
 
     // Helper function to encode token
     function encodeToken(token) {
@@ -42,7 +62,7 @@
 
     // Function to notify the Power-Up that GitHub is connected
     function notifyPowerUp(success) {
-      // Try to find any opener window that might be the Trello tab
+      log('Attempting to notify opener', { success });
       if (window.opener) {
         try {
           window.opener.postMessage(
@@ -52,62 +72,84 @@
             }, 
             '*'
           );
+          log('Notification sent to opener');
         } catch (e) {
-          console.error('Failed to notify opener:', e);
+          log('Failed to notify opener', e);
         }
+      } else {
+        log('No opener window found');
       }
     }
 
-    // Validate state and exchange code for token
-    t.get('member', 'private', 'githubOAuthState')
-      .then(function(savedState) {
-        if (state !== savedState) {
-          throw new Error('Invalid state parameter');
-        }
-        
-        // Exchange code for token using backend
-        return fetch(`${BACKEND_URL}/validate/github/token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${encodeToken(code)}`,
-            'x-power-up-token': POWERUP_API_KEY
-          },
-          body: JSON.stringify({
-            member: {
-              id: t.getContext().member
-            },
-            board: {
-              id: t.getContext().board
-            }
-          })
-        });
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        // Store the GitHub token
-        return t.set('member', 'private', 'githubToken', data.access_token)
-          .then(() => {
-            document.getElementById('status').textContent = 'GitHub account connected successfully!';
-            document.querySelector('.success-icon').textContent = '✅';
-            notifyPowerUp(true);
-            // Close the window after a short delay
-            setTimeout(() => {
-              window.close();
-            }, 1500);
-          });
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('status').textContent = 'Failed to connect GitHub account. Please try again.';
-        document.querySelector('.success-icon').textContent = '❌';
-        notifyPowerUp(false);
+    // Get member and board info first
+    Promise.all([
+      t.getContext(),
+      t.get('member', 'private', 'githubOAuthState')
+    ]).then(([context, savedState]) => {
+      log('Got context and saved state', { 
+        member: context.member,
+        board: context.board,
+        savedState,
+        stateMatch: state === savedState
       });
+
+      if (state !== savedState) {
+        throw new Error('Invalid state parameter');
+      }
+      
+      // Exchange code for token using backend
+      log('Making backend request');
+      return fetch(`${BACKEND_URL}/validate/github/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${encodeToken(code)}`,
+          'x-power-up-token': POWERUP_API_KEY
+        },
+        body: JSON.stringify({
+          member: {
+            id: context.member
+          },
+          board: {
+            id: context.board
+          }
+        })
+      });
+    })
+    .then(response => {
+      log('Got backend response', { 
+        ok: response.ok, 
+        status: response.status 
+      });
+      if (!response.ok) {
+        return response.text().then(text => {
+          throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      log('Got token response', { hasToken: !!data.access_token });
+      // Store the GitHub token
+      return t.set('member', 'private', 'githubToken', data.access_token)
+        .then(() => {
+          document.getElementById('status').textContent = 'GitHub account connected successfully!';
+          document.querySelector('.success-icon').textContent = '✅';
+          notifyPowerUp(true);
+          log('Success! Closing window in 1.5s');
+          // Close the window after a short delay
+          setTimeout(() => {
+            window.close();
+          }, 1500);
+        });
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      log('Error occurred', { message: error.message });
+      document.getElementById('status').textContent = 'Failed to connect GitHub account. Please try again.';
+      document.querySelector('.success-icon').textContent = '❌';
+      notifyPowerUp(false);
+    });
   </script>
 </body>
 </html> 
