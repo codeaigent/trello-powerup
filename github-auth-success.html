@@ -22,6 +22,19 @@
       display: none;
       margin: 20px 0;
     }
+    .retry-button {
+      background: #0079bf;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .retry-button:hover {
+      background: #026aa7;
+    }
   </style>
 </head>
 <body>
@@ -34,7 +47,7 @@
   <div id="error" class="error">
     <h2>❌ Authorization Failed</h2>
     <p id="error-message"></p>
-    <p>You can close this window and try again.</p>
+    <button id="retry-btn" class="retry-button">Try Again</button>
   </div>
 
   <script>
@@ -42,6 +55,7 @@
     const successEl = document.getElementById('success');
     const errorEl = document.getElementById('error');
     const errorMessageEl = document.getElementById('error-message');
+    const retryBtn = document.getElementById('retry-btn');
 
     // Get code from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -61,6 +75,19 @@
       successEl.style.display = 'block';
       setTimeout(() => window.close(), 1500);
     }
+
+    // Function to retry authorization
+    function retryAuth() {
+      if (window.opener && window.opener.retryGitHubAuth) {
+        window.opener.retryGitHubAuth();
+        window.close();
+      } else {
+        showError('Could not communicate with the main window. Please close this window and try again.');
+      }
+    }
+
+    // Add retry button handler
+    retryBtn.addEventListener('click', retryAuth);
 
     // Try to use window.opener to pass back the code
     if (window.opener) {

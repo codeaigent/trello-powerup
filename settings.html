@@ -64,6 +64,59 @@
     let githubState = null;
     let memberId = null;
     let boardId = null;
+    let authWindow = null;
+
+    // Function to open GitHub auth window
+    async function openGitHubAuth() {
+      try {
+        // Get member info first
+        const member = await t.member('id');
+        const board = await t.board('id');
+        
+        // Store IDs globally
+        memberId = member.id;
+        boardId = board.id;
+
+        // Generate and store state
+        githubState = Math.random().toString(36).substring(7);
+        await t.set('member', 'private', 'githubOAuthState', githubState);
+
+        // GitHub OAuth parameters
+        const githubAuthUrl = 'https://github.com/login/oauth/authorize';
+        const clientId = 'Iv23liFtRuiAll1ckg4i';
+        const scope = 'repo read:user';
+        const redirectUri = `${window.location.origin}/github-auth-success.html`;
+
+        // Open GitHub auth in a new window
+        const width = 580;
+        const height = 600;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+
+        // Close existing auth window if it exists
+        if (authWindow && !authWindow.closed) {
+          authWindow.close();
+        }
+
+        authWindow = window.open(
+          `${githubAuthUrl}?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${githubState}`,
+          'GitHubAuth',
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+      } catch (error) {
+        console.error('Error initiating GitHub auth:', error);
+        t.alert({
+          message: 'Failed to start GitHub authorization: ' + error.message,
+          duration: 5,
+          display: 'error'
+        });
+      }
+    }
+
+    // Function to retry GitHub auth
+    window.retryGitHubAuth = function() {
+      openGitHubAuth();
+    };
 
     // Define authorize function in global scope
     window.authorize = async function(code, returnedState) {
@@ -132,6 +185,9 @@
       } catch (error) {
         console.error('GitHub auth error:', error);
         
+        // Clear the stored state on error
+        githubState = null;
+        
         // Notify of failure
         window.postMessage({
           type: 'github-auth-response',
@@ -174,45 +230,8 @@
     }
 
     // GitHub connect button
-    githubConnectBtn.addEventListener('click', async () => {
-      try {
-        // Get member info first
-        const member = await t.member('id');
-        const board = await t.board('id');
-        
-        // Store IDs globally
-        memberId = member.id;
-        boardId = board.id;
-
-        // Generate and store state
-        githubState = Math.random().toString(36).substring(7);
-        await t.set('member', 'private', 'githubOAuthState', githubState);
-
-        // GitHub OAuth parameters
-        const githubAuthUrl = 'https://github.com/login/oauth/authorize';
-        const clientId = 'Iv23liFtRuiAll1ckg4i';
-        const scope = 'repo read:user';
-        const redirectUri = `${window.location.origin}/trello-powerup/github-auth-success.html`;
-
-        // Open GitHub auth in a new window
-        const width = 580;
-        const height = 600;
-        const left = (window.screen.width / 2) - (width / 2);
-        const top = (window.screen.height / 2) - (height / 2);
-
-        window.open(
-          `${githubAuthUrl}?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${githubState}`,
-          'GitHubAuth',
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-      } catch (error) {
-        console.error('Error initiating GitHub auth:', error);
-        t.alert({
-          message: 'Failed to start GitHub authorization: ' + error.message,
-          duration: 5,
-          display: 'error'
-        });
-      }
+    githubConnectBtn.addEventListener('click', () => {
+      openGitHubAuth();
     });
 
     // Repository settings button
