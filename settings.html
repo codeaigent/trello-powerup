@@ -207,8 +207,8 @@
     function checkAuthStatus() {
       Promise.all([
         t.get('member', 'private', 'authToken'),
-        t.get('member', 'private', 'githubToken')
-      ]).then(([trelloToken, githubToken]) => {
+        t.get('member', 'private', 'githubTrelloUserId')
+      ]).then(([trelloToken, githubTrelloUserId]) => {
         // Update Trello status
         if (trelloToken) {
           trelloStatusEl.innerHTML = '<span class="status-icon">✅</span><span>Connected to Trello</span>';
@@ -217,7 +217,7 @@
         }
 
         // Update GitHub status
-        if (githubToken) {
+        if (githubTrelloUserId) {
           githubStatusEl.innerHTML = '<span class="status-icon">✅</span><span>Connected to GitHub</span>';
           githubSettingsBtn.style.display = 'block';
           githubConnectBtn.style.display = 'none';
