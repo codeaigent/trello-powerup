@@ -160,13 +160,13 @@
         if (!response.ok) {
           throw new Error(data.message || `HTTP error! status: ${response.status}`);
         }
-
-        if (!data.access_token) {
-          throw new Error('No access token received');
-        }
         
+        if (!data.userId) {
+          throw new Error('No user ID received');
+        }
+
         // Store the GitHub token
-        await t.set('member', 'private', 'githubToken', data.access_token);
+        await t.set('member', 'private', 'githubTrelloUserId', data.userId); // The primary key for context and other relations
         
         // Update UI
         checkAuthStatus();
