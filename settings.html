@@ -85,24 +85,15 @@
         const githubAuthUrl = 'https://github.com/login/oauth/authorize';
         const clientId = 'Iv23liFtRuiAll1ckg4i';
         const scope = 'repo read:user';
-        const redirectUri = `${window.location.origin}/github-auth-success.html`;
+        const redirectUri = `${window.location.origin}/trello-powerup/auth-success.html`;
 
-        // Open GitHub auth in a new window
-        const width = 580;
-        const height = 600;
-        const left = (window.screen.width / 2) - (width / 2);
-        const top = (window.screen.height / 2) - (height / 2);
-
-        // Close existing auth window if it exists
-        if (authWindow && !authWindow.closed) {
-          authWindow.close();
-        }
-
-        authWindow = window.open(
-          `${githubAuthUrl}?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${githubState}`,
-          'GitHubAuth',
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
+        // Use t.popup() instead of window.open()
+        return t.popup({
+          title: 'GitHub Authorization',
+          url: `${githubAuthUrl}?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${githubState}`,
+          height: 600,
+          width: 800
+        });
       } catch (error) {
         console.error('Error initiating GitHub auth:', error);
         t.alert({
@@ -113,20 +104,15 @@
       }
     }
 
-    // Function to retry GitHub auth
-    window.retryGitHubAuth = function() {
-      openGitHubAuth();
-    };
-
-    // Define authorize function in global scope
+    // Modify the authorize function to work with t.popup()
     window.authorize = async function(code, returnedState) {
       if (!githubState || githubState !== returnedState) {
-        const error = 'Invalid state parameter. Please try again.';
-        window.postMessage({
-          type: 'github-auth-response',
-          success: false,
-          error: error
-        }, '*');
+        t.closePopup();
+        t.alert({
+          message: 'Invalid state parameter. Please try again.',
+          duration: 5,
+          display: 'error'
+        });
         return;
       }
 
@@ -136,7 +122,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${btoa(code)}`,
+            'Authorization': `Bearer ${code}`,
             'x-power-up-token': POWERUP_API_KEY
           },
           body: JSON.stringify({
@@ -171,11 +157,8 @@
         // Update UI
         checkAuthStatus();
         
-        // Notify of success
-        window.postMessage({
-          type: 'github-auth-response',
-          success: true
-        }, '*');
+        // Close the popup
+        t.closePopup();
         
         t.alert({
           message: 'GitHub account connected successfully!',
@@ -188,13 +171,8 @@
         // Clear the stored state on error
         githubState = null;
         
-        // Notify of failure
-        window.postMessage({
-          type: 'github-auth-response',
-          success: false,
-          error: error.message
-        }, '*');
-        
+        // Close popup and show error
+        t.closePopup();
         t.alert({
           message: 'Failed to connect GitHub account: ' + error.message,
           duration: 5,
