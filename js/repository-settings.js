@@ -11,14 +11,14 @@ let selectedRepos = new Set();
 // Load repositories from backend
 async function loadRepositories() {
   try {
-    const token = await t.get('member', 'private', 'githubToken');
-    if (!token) {
-      throw new Error('GitHub token not found');
+    const githubTrelloUserId = await t.get('member', 'private', 'githubTrelloUserId');
+    if (!githubTrelloUserId) {
+      throw new Error('No githubTrelloUserId found');
     }
 
     const response = await fetch(`${BACKEND_URL}/github/repositories`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `${githubTrelloUserId}`
       }
     });
 
@@ -77,7 +77,7 @@ searchInput.addEventListener('input', (e) => {
 // Save selected repositories
 saveButton.addEventListener('click', async () => {
   try {
-    const token = await t.get('member', 'private', 'githubToken');
+    const githubTrelloUserId = await t.get('member', 'private', 'githubTrelloUserId');
     if (!token) {
       throw new Error('GitHub token not found');
     }
@@ -87,7 +87,7 @@ saveButton.addEventListener('click', async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `${githubTrelloUserId}`
       },
       body: JSON.stringify({
         repositories: Array.from(selectedRepos)
