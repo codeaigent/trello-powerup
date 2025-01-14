@@ -18,7 +18,8 @@ async function loadRepositories() {
 
     const response = await fetch(`${BACKEND_URL}/github/repositories`, {
       headers: {
-        'Authorization': `${githubTrelloUserId}`
+        'Authorization': `${githubTrelloUserId}`,
+        'ngrok-skip-browser-warning': 'true'
       }
     });
 
@@ -87,7 +88,8 @@ saveButton.addEventListener('click', async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `${githubTrelloUserId}`
+        'Authorization': `${githubTrelloUserId}`,
+        'ngrok-skip-browser-warning': 'true'
       },
       body: JSON.stringify({
         repositories: Array.from(selectedRepos)
