@@ -79,8 +79,8 @@ searchInput.addEventListener('input', (e) => {
 saveButton.addEventListener('click', async () => {
   try {
     const githubTrelloUserId = await t.get('member', 'private', 'githubTrelloUserId');
-    if (!token) {
-      throw new Error('GitHub token not found');
+    if (!githubTrelloUserId) {
+      throw new Error('GitHub githubTrelloUserId not found');
     }
 
     // Save to backend
